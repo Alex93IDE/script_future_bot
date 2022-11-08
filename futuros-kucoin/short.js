@@ -12,7 +12,7 @@ const STOP_LOSS_PERCENT = process.argv[7] || 1
 
 const sleep = (timeMs) => new Promise(resolve => setTimeout(resolve, timeMs))
 
-async function placeLongPosition() {
+async function placeShortPosition() {
     const contracts = await client.getAllContracts()
     const contract = contracts.data.find(contract => contract.baseCurrency === PAIR1 &&
         contract.quoteCurrency === PAIR2)
@@ -32,10 +32,10 @@ async function placeLongPosition() {
     const amountBuyPAIR1 = parseFloat(amountBuyPAIR2) / parseFloat(price)
 
     const size = parseInt((lotSize * amountBuyPAIR1) / multiplier)
-    const BuyOrder = await client.placeOrder({
+    const SellOrder = await client.placeOrder({
         clientOid: uuidv4(),
         symbol: contract.symbol,
-        side: 'buy',
+        side: 'sell',
         type: 'market',
         leverage: LEVERAGE,
         size,
@@ -43,16 +43,16 @@ async function placeLongPosition() {
 
     await sleep(2000)
 
-    if ('data' in BuyOrder && 'orderId' in BuyOrder.data) {
-        var order = await client.getOrderById({ oid: BuyOrder.data.orderId })
+    if ('data' in SellOrder && 'orderId' in SellOrder.data) {
+        var order = await client.getOrderById({ oid: SellOrder.data.orderId })
         const buyPrice = parseFloat((order.data.filledValue / order.data.filledSize)
             / multiplier).toFixed(pricePlace)
 
-        var tp = parseFloat(parseFloat(buyPrice)
-            + (parseFloat(buyPrice) * TAKE_PROFIT_PERCENT / 100)).toFixed(pricePlace)
-
         var sl = parseFloat(parseFloat(buyPrice)
-            - (parseFloat(buyPrice) * STOP_LOSS_PERCENT / 100)).toFixed(pricePlace)
+            + (parseFloat(buyPrice) * STOP_LOSS_PERCENT / 100)).toFixed(pricePlace)
+
+        var tp = parseFloat(parseFloat(buyPrice)
+            - (parseFloat(buyPrice) * TAKE_PROFIT_PERCENT / 100)).toFixed(pricePlace)
 
         client.initSocket({ topic: "advancedOrders", symbols: [`${PAIR1}-${PAIR2}`] }, (msg) => {
             const res = JSON.parse(msg)
@@ -73,7 +73,7 @@ async function placeLongPosition() {
             clientOid: uuidv4(),
             symbol: contract.symbol,
             side: 'sell',
-            stop: 'up',
+            stop: 'down',
             stopPrice: tp,
             stopPriceType: 'MP',
             leverage: LEVERAGE,
@@ -88,7 +88,7 @@ async function placeLongPosition() {
             clientOid: uuidv4(),
             symbol: contract.symbol,
             side: 'sell',
-            stop: 'down',
+            stop: 'up',
             stopPrice: sl,
             stopPriceType: 'MP',
             leverage: LEVERAGE,
@@ -118,4 +118,4 @@ const checkOrdersStatus = async (attemps = 0) => {
     }
 }
 
-placeLongPosition()
+placeShortPosition()
